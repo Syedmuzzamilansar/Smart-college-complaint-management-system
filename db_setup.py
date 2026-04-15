@@ -49,13 +49,26 @@ except Exception:
         IntegrityError=_psycopg.IntegrityError,
         Error=_psycopg.Error,
     )
-
 load_dotenv()
 
 # ── 1. Resolve and normalise DATABASE_URL ────────────────────────────────────
-DATABASE_URL = os.getenv('DATABASE_URL', '').strip()
+def _resolve_database_url():
+    for key in (
+        'DATABASE_URL',
+        'POSTGRES_URL',
+        'POSTGRESQL_URL',
+        'RENDER_DATABASE_URL',
+        'RENDER_POSTGRESQL_URL',
+    ):
+        value = (os.getenv(key) or '').strip()
+        if value:
+            return value
+    return ''
+
+
+DATABASE_URL = _resolve_database_url()
 if not DATABASE_URL:
-    print('[ERROR] DATABASE_URL is not set in .env')
+    print('[ERROR] Database URL is missing. Set DATABASE_URL (or POSTGRES_URL/POSTGRESQL_URL) and retry.')
     sys.exit(1)
 
 db_url = DATABASE_URL
@@ -239,11 +252,14 @@ if pruned:
 
 # ── 7. Summary ────────────────────────────────────────────────────────────────
 c.execute("SELECT COUNT(*) FROM users WHERE role = 'student'")
-student_count = c.fetchone()[0]
+student_row = c.fetchone() or (0,)
+student_count = student_row[0]
 c.execute("SELECT COUNT(*) FROM complaints")
-complaint_count = c.fetchone()[0]
+complaint_row = c.fetchone() or (0,)
+complaint_count = complaint_row[0]
 c.execute("SELECT COUNT(*) FROM complaints WHERE status = 'Pending'")
-pending_count = c.fetchone()[0]
+pending_row = c.fetchone() or (0,)
+pending_count = pending_row[0]
 
 print()
 print('┌─────────────────────────────────────────────┐')
