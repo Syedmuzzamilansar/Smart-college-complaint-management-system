@@ -139,7 +139,21 @@ except Exception as e:
     print(f"[SOCKET_REUSE_WARNING] Could not enable SO_REUSEADDR: {e}")
 
 # ── Environment ───────────────────────────────────────────────────────────────
-DATABASE_URL   = os.getenv('DATABASE_URL')
+def _resolve_database_url():
+    for key in (
+        'DATABASE_URL',
+        'POSTGRES_URL',
+        'POSTGRESQL_URL',
+        'RENDER_DATABASE_URL',
+        'RENDER_POSTGRESQL_URL',
+    ):
+        value = (os.getenv(key) or '').strip()
+        if value:
+            return value
+    return None
+
+
+DATABASE_URL   = _resolve_database_url()
 GEMINI_API_KEY = os.getenv('GEMINI_API_KEY', '').strip()
 GEMINI_MODEL   = os.getenv('GEMINI_MODEL', 'gemini-2.0-flash').strip() or 'gemini-2.0-flash'
 
@@ -2013,9 +2027,12 @@ def set_security_headers(response):
 
 
 def get_db():
-    db_url = _normalize_database_url(DATABASE_URL)
+    db_url = _normalize_database_url(_resolve_database_url())
     if not db_url:
-        raise RuntimeError('DATABASE_URL is missing. Add it in .env and restart.')
+        raise RuntimeError(
+            'Database URL is missing. Set DATABASE_URL '
+            '(or POSTGRES_URL/POSTGRESQL_URL) and restart.'
+        )
     retries = 1
     last_error = None
     for attempt in range(retries + 1):
@@ -2068,7 +2085,11 @@ def handle_service_unavailable(_):
 @app.errorhandler(RuntimeError)
 def handle_runtime_error(error):
     msg = str(error)
-    if 'Database connection failed' in msg or 'DATABASE_URL is missing' in msg:
+    if (
+        'Database connection failed' in msg
+        or 'DATABASE_URL is missing' in msg
+        or 'Database URL is missing' in msg
+    ):
         return handle_service_unavailable(error)
     return handle_server_error(error)
 
