@@ -39,7 +39,7 @@
 #         so the AI never loses earlier complaint details on long conversations.
 # ────────────────────────────────────────────────────────────────────────────
 
-from flask import Flask, render_template, request, redirect, session, url_for, flash, abort, send_from_directory
+from flask import Flask, render_template, request, redirect, session, url_for, flash, abort
 import json
 import os
 import secrets
@@ -191,6 +191,9 @@ AI_TOKENS_REDIRECT  = 110   # short friendly out-of-scope redirect
 
 SCHEMA_LOCK        = threading.Lock()
 SCHEMA_INITIALIZED = False
+
+GOOGLE_VERIFY_PATH = '/googleefb73d8c09f32ea4.html'
+GOOGLE_VERIFY_TEXT = 'google-site-verification: googleefb73d8c09f32ea4.html'
 
 # ── College knowledge base ────────────────────────────────────────────────────
 _COLLEGE_KB = """
@@ -1983,6 +1986,9 @@ def inject_template_globals():
 
 @app.before_request
 def enforce_csrf_on_post():
+    if request.path == GOOGLE_VERIFY_PATH:
+        return
+
     _ensure_schema_initialized()
     if request.method != 'POST':
         return
@@ -2161,9 +2167,9 @@ def favicon():
     return redirect(url_for('static', filename='images/qqgpt-logo.jpeg'))
 
 
-@app.route('/googleefb73d8c09f32ea4.html')
+@app.route(GOOGLE_VERIFY_PATH)
 def google_site_verification():
-    return send_from_directory(app.root_path, 'googleefb73d8c09f32ea4.html')
+    return GOOGLE_VERIFY_TEXT, 200, {'Content-Type': 'text/plain; charset=utf-8'}
 
 
 # ── Register ──────────────────────────────────────────────────────────────────
